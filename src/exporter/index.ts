@@ -86,7 +86,12 @@ class Exporter extends EventEmitter {
                 res.end(
                     readFileSync(join(__dirname, "../../public/index.html"), { encoding: "utf8" })
                 );
+	        break;
             }
+	    default: {
+	        res.statusCode = 404;
+	        res.end("Not found.\n");
+	    }
         }
     }
     stop() {

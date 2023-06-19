@@ -10,6 +10,14 @@ interface IGauge {
     getProperty: (res: ScrapeResult) => any;
 }
 export const GAUGES: IGauge[] = [
+//    {
+//        gauge: {
+//            name: "webscraper_http_response_code",
+//            help: "HTTP response code",
+//            labelNames,
+//        },
+//        getProperty: (res) => res.status(),
+//    },
     {
         gauge: {
             name: "webscraper_time_to_first_byte_seconds",

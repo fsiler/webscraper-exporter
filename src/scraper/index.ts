@@ -239,7 +239,9 @@ class Scraper extends EventEmitter {
             LogLevel.DEBUG,
             `Running addons that need to be ran after the test (${dim(after.length)})`
         );
+
         const scrapeRes = { cpuMetrics, memoryMetrics, duration: end - start, bytesIn, ttfb };
+
         for (let addon of after)
             try {
                 const res = await addon.run(context, page, url, scrapeRes);

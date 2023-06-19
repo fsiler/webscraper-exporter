@@ -1,9 +1,10 @@
-FROM node:16-alpine
+FROM node:20-alpine
 
 WORKDIR /usr/src
 COPY package.json ./
 #COPY yarn.lock ./
 COPY src src
+COPY public public
 COPY templates templates
 COPY config/default.wsce.config.js config/default.wsce.config.js
 COPY tsconfig.json ./
