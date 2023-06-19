@@ -9,7 +9,9 @@ import { ScrapeResult } from "../scraper";
 import { GAUGES } from "./constants";
 import { blueBright } from "colorette";
 import { readFileSync } from "fs-extra";
-import { join } from "path";
+import { extname, join } from "path";
+import { createReadStream, readdir } from "fs";
+import { promisify } from "util";
 
 interface Exporter {
     on(event: "info", listener: (message: string) => void): this;
@@ -73,8 +75,46 @@ class Exporter extends EventEmitter {
             }
         }
     }
+
+    private async handleImagesRequest(res: ServerResponse) {
+      try {
+        const readdirAsync = promisify(readdir);
+        const files = await readdirAsync(process.cwd());
+        const pngFiles = files.filter(file => extname(file) === ".png");
+        const fileNames = pngFiles.map(file => `<li>${file}</li>`).join("");
+        const html = `
+          <html>
+            <head>
+              <title>Image Listing</title>
+            </head>
+            <body>
+              <h1>Image Listing</h1>
+              <ul>${fileNames}</ul>
+            </body>
+          </html>
+        `;
+        res.setHeader("Content-Type", "text/html");
+        res.statusCode = 200;
+        res.end(html);
+      } catch (error) {
+        res.statusCode = 500;
+        res.end("Error retrieving image listing.");
+      }
+    }
+
+    private async handleImageRequest(imagePath: string, res: ServerResponse) {
+      try {
+        const fileStream = createReadStream(imagePath); // yes I know this is highly insecure
+        fileStream.pipe(res);
+      } catch (error) {
+        res.statusCode = 404;
+        res.end("Image not found.\n");
+      }
+    }
+
     private async _get(req: IncomingMessage, res: ServerResponse) {
-        const route = url.parse(req.url as string).pathname;
+	const route = url.parse(req.url as string).pathname ?? "/";
+
         switch (route) {
             case "/metrics": {
                 res.setHeader("Content-Type", this.register.contentType);
@@ -88,10 +128,20 @@ class Exporter extends EventEmitter {
                 );
 	        break;
             }
-	    default: {
-	        res.statusCode = 404;
-	        res.end("Not found.\n");
-	    }
+            case "/images": {
+              await this.handleImagesRequest(res);
+              break;
+            }
+            default: {
+              if (route.startsWith("/images/")) {
+                const imagePath = route.substring(8);
+                await this.handleImageRequest(imagePath, res);
+              } else {
+                res.statusCode = 404;
+                res.end("Not found.\n");
+              }
+              break;
+            }
         }
     }
     stop() {
