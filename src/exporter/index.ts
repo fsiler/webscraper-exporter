@@ -110,14 +110,18 @@ class Exporter extends EventEmitter {
     private async handleImageRequest(imagePath: string, res: ServerResponse) {
       try {
         const filePath = join("/usr/src/", imagePath);
-        const fileExtension = extname(imagePath).toLowerCase();
-        if (fileExtension === ".png") {
+        const stat = statSync(filePath);
+        if (stat.isFile()) {
           const fileStream = createReadStream(filePath);
+          fileStream.on("error", (error) => {
+            res.statusCode = 500;
+            res.end("Error reading image file.\n");
+          });
           res.setHeader("Content-Type", "image/png");
           fileStream.pipe(res);
         } else {
-          res.statusCode = 400;
-          res.end("Invalid image format. Only PNG images are supported.\n");
+          res.statusCode = 404;
+          res.end("Image not found.\n");
         }
       } catch (error) {
         res.statusCode = 404;
