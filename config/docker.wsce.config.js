@@ -7,7 +7,10 @@ const GBTlogin = {
            await page.type('#okta-signin-username', 'franklin.siler@sscinc.com');
            console.log("done typing username.");
            console.log("clicking continue....");
-           await page.click("#okta-signin-submit2");
+           const [gbtToKeyCloakReponse] = await Promise.all([
+              page.waitForNavigation(), // The promise resolves after navigation has finished
+              page.click('#okta-signin-submit2'), // Clicking the link will indirectly cause a navigation
+           ]);
            console.log("done clicking continue.");
            console.log("waiting for KeyCloak username box")
            const keycloakLoginSelector = "#userNameInput";
@@ -16,19 +19,28 @@ const GBTlogin = {
            await page.type(keycloakLoginSelector, "ssnc-corp\\dt235813");
            await page.type("#passwordInput", password);
            console.log("typed login and password. Clicking the go button...");
-           await page.click("#submitButton");
-           console.log("clicked go.  Waiting on hamburger id to appear...");
-           await page.waitForSelector("#hamburger");
-           console.log("got hamburger id.");
+           const [response] = await Promise.all([
+              page.waitForNavigation(), // The promise resolves after navigation has finished
+              page.click('#submitButton'), // Clicking the link will indirectly cause a navigation
+           ]);
+           console.log(response.status());
+           const text = await response.text();
+           if(/incorrect user id or password/i.test(text)) {
+	     console.log("bad login.")
+	   } else {
+             console.log("clicked go.  Waiting on hamburger id to appear...");
+             await page.waitForSelector("#hamburger");
+             console.log("got hamburger id.");
 
-           // take screenshot
-           await page.waitForSelector("#close-support-container");
-           await page.waitForSelector("article.slds-card.container");
-           d = new Date(); ts = d.getTime();
-           const filename = ts + "-test.png"
-           console.log("starting screenshot" + filename + url);
-           await page.screenshot({ path: filename})
-           console.log("done taking screenshot.")
+             // take screenshot
+             await page.waitForSelector("#close-support-container");
+             await page.waitForSelector("article.slds-card.container");
+             d = new Date(); ts = d.getTime();
+             const filename = ts + "-test.png";
+             console.log("starting screenshot");
+             await page.screenshot({ path: filename });
+             console.log("done taking screenshot: " + filename);
+	   }
         },
 }
 
