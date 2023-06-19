@@ -10,7 +10,7 @@ import { GAUGES } from "./constants";
 import { blueBright } from "colorette";
 import { readFileSync } from "fs-extra";
 import { extname, join } from "path";
-import { createReadStream, readdir } from "fs";
+import { createReadStream, readdir, statSync } from "fs";
 import { promisify } from "util";
 
 interface Exporter {
@@ -81,18 +81,23 @@ class Exporter extends EventEmitter {
         const readdirAsync = promisify(readdir);
         const files = await readdirAsync(process.cwd());
         const pngFiles = files.filter(file => extname(file) === ".png");
-        const fileNames = pngFiles.map(file => `<li>${file}</li>`).join("");
-        const html = `
-          <html>
-            <head>
-              <title>Image Listing</title>
-            </head>
-            <body>
-              <h1>Image Listing</h1>
-              <ul>${fileNames}</ul>
-            </body>
-          </html>
-        `;
+        const fileEntries = pngFiles.map((file) => {
+	      const filePath = join("./", file);
+              const stat = statSync(filePath);
+              const timestamp = file.split("-")[0];
+              const isoDate = new Date(Number(timestamp)).toISOString().substring(0, 19);
+	      return `\n      <li><a href="/images/${file}">${file}</a> - ${isoDate} - ${stat.size} bytes</li>`;
+            });
+        const html = `<html>
+  <head>
+    <title>Image Listing</title>
+  </head>
+  <body>
+    <h1>Image Listing</h1>
+    <ul>${fileEntries}
+    </ul>
+  </body>
+</html>\n`;
         res.setHeader("Content-Type", "text/html");
         res.statusCode = 200;
         res.end(html);
@@ -104,8 +109,16 @@ class Exporter extends EventEmitter {
 
     private async handleImageRequest(imagePath: string, res: ServerResponse) {
       try {
-        const fileStream = createReadStream(imagePath); // yes I know this is highly insecure
-        fileStream.pipe(res);
+        const filePath = join("/usr/src/", imagePath);
+        const fileExtension = extname(imagePath).toLowerCase();
+        if (fileExtension === ".png") {
+          const fileStream = createReadStream(filePath);
+          res.setHeader("Content-Type", "image/png");
+          fileStream.pipe(res);
+        } else {
+          res.statusCode = 400;
+          res.end("Invalid image format. Only PNG images are supported.\n");
+        }
       } catch (error) {
         res.statusCode = 404;
         res.end("Image not found.\n");
